@@ -55,13 +55,15 @@
 
     // plataforma
     var rig = new T.Group(); scene.add(rig);
-    var disc = M(new T.CylinderGeometry(4.1, 4.1, 0.06, 80), mat(0x2b3036, 0, 0.95, { envMapIntensity: 0.15 }), 0, -0.03, 0, rig); disc.castShadow = false;
+    var lightT = opts.theme === 'light';
+    var disc = M(new T.CylinderGeometry(4.1, 4.1, 0.06, 80), mat(lightT ? 0xece9e2 : 0x2b3036, 0, 0.95, { envMapIntensity: 0.15 }), 0, -0.03, 0, rig); disc.castShadow = false;
     var ring = new T.Mesh(new T.RingGeometry(3.9, 3.96, 96), new T.MeshBasicMaterial({ color: 0xe8590c, side: T.DoubleSide }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = 0.004; rig.add(ring);
-    var ticks = new T.InstancedMesh(new T.BoxGeometry(0.03, 0.01, 0.16), new T.MeshBasicMaterial({ color: 0x8a9097 }), 72), dm = new T.Object3D();
+    var ticks = new T.InstancedMesh(new T.BoxGeometry(0.03, 0.01, 0.16), new T.MeshBasicMaterial({ color: lightT ? 0xb9b4aa : 0x8a9097 }), 72), dm = new T.Object3D();
     for (var i = 0; i < 72; i++) { var an = i / 72 * Math.PI * 2; dm.position.set(Math.cos(an) * 3.7, 0.006, Math.sin(an) * 3.7); dm.rotation.set(0, -an, 0); dm.updateMatrix(); ticks.setMatrixAt(i, dm.matrix); }
     rig.add(ticks);
 
+    if (opts.interactive) { disc.scale.set(0.66, 1, 0.66); ring.scale.setScalar(0.66); ticks.scale.set(0.66, 1, 0.66); }
     var truck = new T.Group(); rig.add(truck);   // frente = +z, lado izquierdo = +x
     var holder = new T.Group(); truck.add(holder);
     var paintMats = [], targetColor = new T.Color(COLORS.blanco);
@@ -130,6 +132,10 @@
 
     // ---- estado ----
     var state = { parts: {}, color: 'blanco', view: 'three', loaded: false };
+    var interactive = !!opts.interactive, reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var VIEWS = { three: { yaw: -0.6, pitch: 0.26 }, front: { yaw: 0, pitch: 0.12 }, side: { yaw: -Math.PI / 2, pitch: 0.08 }, rear: { yaw: -Math.PI, pitch: 0.16 }, top: { yaw: -0.5, pitch: 1.1 } };
+    var HS = { estribos: ['Estribos', 1.0, 0.55, 0.1], defensa: ['Defensa', 0, 0.95, 3.0], barras: ['Barras', 0, 1.95, -1.1], tapa: ['Tapa de caja', 0, 1.45, -1.8], faros: ['Faros LED', 0, 1.95, 0.3], llantas: ['Llantas', 0.95, 0.85, 1.8] };
+    var iYaw = VIEWS.three.yaw, iPitch = VIEWS.three.pitch, tView = null, yawVel = 0, idle = 0, dragging = false;
     ORDER.forEach(function (k) { state.parts[k] = false; });
     var listeners = [], spinVal = 0, spinTarget = 0, bounceY = 0, bounceV = 0;
     function emit() { listeners.forEach(function (f) { f(state); }); }
@@ -177,14 +183,52 @@
       }, undefined, function (e) { failed = true; if (opts.onError) opts.onError(e); });
     } catch (e) { failed = true; if (opts.onError) setTimeout(function () { opts.onError(e); }, 0); }
 
+    // ---- interacción (hero / configurador) ----
+    var labels = null, hint = null, started = false, lx = 0, ly = 0, tmp = new T.Vector3();
+    function setView(name) { if (!VIEWS[name]) return; state.view = name; tView = VIEWS[name]; yawVel = 0; idle = 0; emit(); }
+    function updateLabels() {
+      var dc = camera.position.distanceTo(target);
+      ORDER.forEach(function (k) {
+        var h = HS[k]; tmp.set(h[1], h[2], h[3]); truck.localToWorld(tmp);
+        var d = camera.position.distanceTo(tmp); tmp.project(camera);
+        var x = (tmp.x * 0.5 + 0.5) * W, y = (-tmp.y * 0.5 + 0.5) * H, el = labels[k], hide = d > dc + 2.4;
+        el.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px)';
+        el.style.opacity = hide ? '0' : '1'; el.style.pointerEvents = hide ? 'none' : ''; el.classList.toggle('lf', x > W * 0.68);
+      });
+    }
+    if (interactive) {
+      canvas.addEventListener('pointerdown', function (e) { dragging = true; lx = e.clientX; ly = e.clientY; yawVel = 0; tView = null; idle = 0; try { canvas.setPointerCapture(e.pointerId); } catch (er) {} container.classList.add('grabbing'); if (hint) hint.classList.add('gone'); });
+      canvas.addEventListener('pointermove', function (e) {
+        if (!dragging) return; var dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY;
+        iYaw += dx * 0.009; yawVel = dx * 0.009; if (e.pointerType !== 'touch') iPitch = Math.max(0.04, Math.min(1.2, iPitch + dy * 0.005)); idle = 0;
+      });
+      var endDrag = function () { dragging = false; container.classList.remove('grabbing'); };
+      canvas.addEventListener('pointerup', endDrag); canvas.addEventListener('pointercancel', endDrag);
+      var overlay = document.createElement('div'); overlay.className = 'ovl'; container.appendChild(overlay); labels = {};
+      ORDER.forEach(function (k) {
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'hs'; b.dataset.k = k;
+        b.innerHTML = '<i></i><span>' + HS[k][0] + '</span>'; b.setAttribute('aria-label', HS[k][0]);
+        b.addEventListener('click', function () { toggle(k); }); overlay.appendChild(b); labels[k] = b;
+      });
+      listeners.push(function (st) { ORDER.forEach(function (k) { labels[k].classList.toggle('on', !!st.parts[k]); }); });
+      if (opts.hint !== false) { hint = document.createElement('div'); hint.className = 'hint'; hint.innerHTML = '<b>↔</b> Arrastrá para girar · tocá los puntos'; container.appendChild(hint); }
+    }
+
     // ---- loop ----
     var visible = true, clock = new T.Clock();
-    if (window.IntersectionObserver) new IntersectionObserver(function (es) { visible = es[0].isIntersecting; }, { threshold: 0.01 }).observe(container);
+    if (window.IntersectionObserver) new IntersectionObserver(function (es) {
+      visible = es[0].isIntersecting;
+      if (visible && !started && interactive && opts.autoAssemble) { started = true; if (reduce) all(true); else assemble(['llantas', 'estribos', 'defensa', 'barras', 'tapa', 'faros'], 560, 900); }
+    }, { threshold: 0.15 }).observe(container);
     function frame() {
       requestAnimationFrame(frame);
       if (!visible || document.hidden) return;
       var dt = Math.min(clock.getDelta(), 0.05), k2 = Math.min(1, dt * 6);
-      cYaw += (ext.yaw - cYaw) * k2; cPitch += (ext.pitch - cPitch) * k2; cZoom += ((ext.zoom || 1) - cZoom) * k2; cTy += ((ext.ty == null ? 0.8 : ext.ty) - cTy) * k2;
+      if (interactive) {
+        if (tView) { var dy0 = tView.yaw - iYaw; dy0 -= Math.round(dy0 / (Math.PI * 2)) * Math.PI * 2; iYaw += dy0 * k2; iPitch += (tView.pitch - iPitch) * k2; if (Math.abs(dy0) < 0.003) tView = null; }
+        else if (!dragging) { idle += dt; iYaw += yawVel; yawVel *= 0.93; if (idle > 2.5 && !reduce) iYaw += dt * 0.28; }
+        ext = { yaw: iYaw, pitch: iPitch, zoom: 0.72, ty: 0.8 }; cYaw = iYaw; cPitch = iPitch; cZoom = 0.72; cTy = 0.8;
+      } else { cYaw += (ext.yaw - cYaw) * k2; cPitch += (ext.pitch - cPitch) * k2; cZoom += ((ext.zoom || 1) - cZoom) * k2; cTy += ((ext.ty == null ? 0.8 : ext.ty) - cTy) * k2; }
       rig.rotation.y = cYaw; target.set(0, cTy, 0);
       var RR = R * cZoom;
       camera.position.set(0, target.y + Math.sin(cPitch) * RR, Math.cos(cPitch) * RR); camera.lookAt(target);
@@ -201,11 +245,12 @@
       });
       bounceV += (-90 * bounceY - 7 * bounceV) * dt; bounceY += bounceV * dt; truck.position.y = bounceY * 0.05;
       paintMats.forEach(function (mt) { mt.color.lerp(targetColor, Math.min(1, dt * 6)); });
+      if (labels) updateLabels();
       renderer.render(scene, camera);
     }
     frame();
 
-    var api = { state: state, set: set, toggle: toggle, all: all, setColor: setColor, assemble: assemble, scrub: scrub, onChange: function (f) { listeners.push(f); f(state); },
+    var api = { state: state, set: set, toggle: toggle, all: all, setColor: setColor, assemble: assemble, scrub: scrub, setView: setView, onChange: function (f) { listeners.push(f); f(state); },
       destroy: function () { renderer.dispose(); if (canvas.parentNode) canvas.parentNode.removeChild(canvas); } };
     return api;
   };

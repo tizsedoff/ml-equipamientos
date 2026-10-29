@@ -5,17 +5,28 @@
   var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   var fine = window.matchMedia && matchMedia('(pointer:fine)').matches;
   var TI = window.TRUCK_INFO;
+  var RANGER_URL = location.hostname === 'localhost' ? 'models/ranger.glb' : 'https://cdn.jsdelivr.net/gh/tizsedoff/ml-equipamientos@70592bf4efe498a220247b7c63b643676b425e27/models/ranger.glb';
+  function fallbackHero() {
+    var el = g('heroStage'); if (!window.createTruck || !el) return; el.innerHTML = '';
+    window.createTruck(el, { theme: 'light', autoAssemble: true });
+  }
 
   // ---------- Escena 3D del hero ----------
   var hero = null;
-  if (window.createTruck && g('heroStage')) {
-    hero = window.createTruck(g('heroStage'), { theme: 'light', autoAssemble: true });
+  if (g('heroStage')) {
+    hero = window.createRanger && window.createRanger(g('heroStage'), { theme: 'light', autoAssemble: true, interactive: true, model: RANGER_URL, onError: function () { fallbackHero(); } });
+    if (!hero && window.createTruck) hero = window.createTruck(g('heroStage'), { theme: 'light', autoAssemble: true });
     if (hero) g('heroTruck').classList.add('has3d');
   }
 
   // ---------- Configurador ----------
-  var cfg = null;
-  if (window.createTruck && g('cfgStage')) cfg = window.createTruck(g('cfgStage'), { theme: 'dark' });
+  var cfg = null, cfgSync = function () {};
+  if (g('cfgStage')) {
+    if (window.createRanger) cfg = window.createRanger(g('cfgStage'), { theme: 'dark', interactive: true, model: RANGER_URL, onError: function () {
+      var el = g('cfgStage'); if (window.createTruck && el) { el.innerHTML = ''; var t = window.createTruck(el, { theme: 'dark' }); if (t) { cfg = t; t.onChange(function (s) { cfgSync(s); }); } }
+    } });
+    if (!cfg && window.createTruck) cfg = window.createTruck(g('cfgStage'), { theme: 'dark' });
+  }
   if (!cfg) {
     document.querySelectorAll('[data-needs3d]').forEach(function (e) { e.remove(); });
   } else {
@@ -41,13 +52,14 @@
       window.open(waURL(msg), '_blank');
     };
 
-    cfg.onChange(function (s) {
+    cfgSync = function (s) {
       var n = 0;
       optsEl.querySelectorAll('.opt').forEach(function (b) { var on = !!s.parts[b.dataset.k]; b.classList.toggle('on', on); if (on) n++; });
       swEl.querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b.dataset.c === s.color); });
       g('cfgViews').querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === s.view); });
       g('cfgCount').textContent = n;
-    });
+    };
+    cfg.onChange(function (s) { cfgSync(s); });
 
     // demo inicial: se arma sola la primera vez que se ve
     if (window.IntersectionObserver && !reduce) {
@@ -65,7 +77,7 @@
   var scrEl = g('recorrido');
   if (scrEl) {
     var st = null, doUpdate = null;
-    if (window.createRanger) st = window.createRanger(g('scrStage'), { model: 'https://cdn.jsdelivr.net/gh/tizsedoff/ml-equipamientos@70592bf4efe498a220247b7c63b643676b425e27/models/ranger.glb', onError: function () { swapToProcedural(); } });
+    if (window.createRanger) st = window.createRanger(g('scrStage'), { model: RANGER_URL, onError: function () { swapToProcedural(); } });
     var proc = false;
     if (!st && window.createTruck) { st = window.createTruck(g('scrStage'), { theme: 'dark', hint: false }); proc = true; }
     function swapToProcedural() {
