@@ -65,7 +65,7 @@
   var scrEl = g('recorrido');
   if (scrEl) {
     var st = null, doUpdate = null;
-    if (window.createRanger) st = window.createRanger(g('scrStage'), { onError: function () { swapToProcedural(); } });
+    if (window.createRanger) st = window.createRanger(g('scrStage'), { model: 'https://cdn.jsdelivr.net/gh/tizsedoff/ml-equipamientos@70592bf4efe498a220247b7c63b643676b425e27/models/ranger.glb', onError: function () { swapToProcedural(); } });
     var proc = false;
     if (!st && window.createTruck) { st = window.createTruck(g('scrStage'), { theme: 'dark', hint: false }); proc = true; }
     function swapToProcedural() {
