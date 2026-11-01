@@ -8,6 +8,12 @@
   // perfiles por camioneta: anclajes de los accesorios (m), llantas, escalas y puntos de los rótulos
   var PROFILES = {
     ranger: { file: 'models/ranger.glb', fit: 0, wheels: [1.8, -1.43], track: 0.945, wy: 0.405, pos: {}, sc: {}, accS: 1, hs: {} },
+    hilux: {
+      file: 'models/hilux.glb', fit: 5.18, wheels: [1.63, -1.37], track: 0.9, wy: 0.4,
+      pos: { estribos: [0, 0.4, 0.18], defensa: [0, 0.48, 2.32], barras: [0, 1.25, -1.15], tapa: [0, 1.25, -1.65], faros: [0, 1.64, 0.6], enganche: [0, 0.55, -2.35] },
+      sc: { estribos: 0.95, barras: 0.9, tapa: 0.88, faros: 0.9 }, accS: 0.9,
+      hs: { estribos: [1.0, 0.5, 0.18], defensa: [0, 0.8, 2.7], barras: [0, 1.85, -1.15], tapa: [0, 1.35, -1.65], faros: [0, 1.75, 0.6], llantas: [0.9, 0.8, 1.63], enganche: [0, 0.5, -2.7] }
+    },
     amarok: {
       file: 'models/amarok.glb', fit: 5.25, wheels: [1.73, -1.25], track: 0.9, wy: 0.395,
       pos: { estribos: [0, 0.4, 0.17], defensa: [0, 0.5, 2.24], barras: [0, 1.27, -1.2], tapa: [0, 1.27, -1.62], faros: [0, 1.72, 0.5], enganche: [0, 0.5, -2.39] },

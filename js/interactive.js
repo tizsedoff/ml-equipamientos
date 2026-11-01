@@ -21,7 +21,7 @@
   }
 
   // ---------- Configurador ----------
-  var cfg = null, cfgSync = function () {}, cfgVeh = 'ranger', VEH_NAMES = { ranger: 'Ford Ranger', amarok: 'VW Amarok' };
+  var cfg = null, cfgSync = function () {}, cfgVeh = 'ranger', VEH_NAMES = { ranger: 'Ford Ranger', amarok: 'VW Amarok', hilux: 'Toyota Hilux' };
   function mountCfg(veh, carry) {
     var el = g('cfgStage'); if (cfg && cfg.destroy) cfg.destroy(); el.innerHTML = ''; cfg = null; cfgVeh = veh;
     if (window.createRanger) cfg = window.createRanger(el, { theme: 'dark', interactive: true, vehicle: veh, onError: function () {
