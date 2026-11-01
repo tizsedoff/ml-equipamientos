@@ -5,7 +5,8 @@
   var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   var fine = window.matchMedia && matchMedia('(pointer:fine)').matches;
   var TI = window.TRUCK_INFO;
-  var RANGER_URL = location.hostname === 'localhost' ? 'models/ranger.glb' : 'https://cdn.jsdelivr.net/gh/tizsedoff/ml-equipamientos@70592bf4efe498a220247b7c63b643676b425e27/models/ranger.glb';
+  if (window.createRanger && TI && TI.ORDER.indexOf('enganche') < 0) { TI.ORDER.push('enganche'); TI.INFO.enganche = { n: 'Enganche', d: 'Enganche reforzado con soportes' }; }
+  var RANGER_URL = 'models/ranger.glb';
   function fallbackHero() {
     var el = g('heroStage'); if (!window.createTruck || !el) return; el.innerHTML = '';
     window.createTruck(el, { theme: 'light', autoAssemble: true });
@@ -66,7 +67,7 @@
       var once = new IntersectionObserver(function (es) {
         if (es[0].isIntersecting) {
           once.disconnect();
-          cfg.assemble(['llantas', 'estribos', 'defensa', 'barras', 'tapa', 'faros'], 380, 500);
+          cfg.assemble(['llantas', 'estribos', 'defensa', 'barras', 'tapa', 'faros', 'enganche'], 380, 500);
         }
       }, { threshold: 0.35 });
       once.observe(g('cfgStage'));
@@ -93,9 +94,9 @@
       var KR = [[-0.6, 0.26, 1.0, 0.8], [-0.1, 0.1, 0.8, 0.6], [-1.57, 0.08, 0.85, 0.55], [-3.5, 0.5, 0.85, 1.0],
         [-4.7, 0.16, 0.8, 0.8], [-5.9, 0.12, 0.62, 1.1], [-6.88, 0.26, 1.0, 0.8]];
       var KEYS = proc ? KP : KR;
-      var PARTS = [[], ['llantas'], ['llantas','estribos'], ['llantas','estribos','barras','tapa'],
-        ['llantas','estribos','barras','tapa','defensa'], ['llantas','estribos','barras','tapa','defensa','faros'],
-        ['llantas','estribos','barras','tapa','defensa','faros']];
+      var PARTS = [[], ['llantas'], ['llantas','estribos'], ['llantas','estribos','barras','tapa','enganche'],
+        ['llantas','estribos','barras','tapa','enganche','defensa'], ['llantas','estribos','barras','tapa','enganche','defensa','faros'],
+        ['llantas','estribos','barras','tapa','enganche','defensa','faros']];
       var chs = scrEl.querySelectorAll('.ch'), nEl = g('scrN'), bar = g('scrBar'), sc = scrEl.querySelector('.scr-sc');
       var cur = -1, N = KEYS.length - 1;
       function sm(x) { return x * x * (3 - 2 * x); }

@@ -3,7 +3,7 @@
   'use strict';
   var T = window.THREE;
   var COLORS = { blanco: 0xdcdbd6, negro: 0x1a1c1f, gris: 0x636a72, rojo: 0xa8271d, azul: 0x20426b, arena: 0xb7a27a };
-  var ORDER = ['llantas', 'estribos', 'barras', 'tapa', 'defensa', 'faros'];
+  var ORDER = ['llantas', 'estribos', 'barras', 'tapa', 'defensa', 'faros', 'enganche'];
 
   function glOK() {
     try { var c = document.createElement('canvas'); return !!(window.WebGLRenderingContext && (c.getContext('webgl2') || c.getContext('webgl'))); } catch (e) { return false; }
@@ -82,7 +82,7 @@
         [-0.7, 0.7].forEach(function (z) { B(0.2, 0.05, 0.08, steel, s * 0.92, 0.02, z, g); });
       });
     });
-    addAcc('defensa', 0, 0.62, 2.84, function (g) {
+    addAcc('defensa', 0, 0.5, 2.48, function (g) {
       B(1.55, 0.2, 0.14, blk, 0, -0.25, -0.02, g);
       B(0.7, 0.14, 0.05, orange, 0, -0.22, 0.07, g);
       C(0.04, 1.5, blk, 0, 0.05, 0.1, g, 'x');
@@ -116,6 +116,24 @@
         C(0.1, 0.08, led, x, -1.1, 2.0, g, 'z'); C(0.12, 0.05, blk, x, -1.1, 1.97, g, 'z');
       });
     });
+    addAcc('enganche', 0, 0.62, -2.51, function () {});
+    // modelos reales de accesorios (GLB): defensa y enganche
+    var accBase = (opts.model || 'models/ranger.glb').replace(/ranger\.glb$/, '');
+    var accMat = mat(0x17191c, 0.65, 0.38), hitchMat = mat(0x2b2e33, 0.7, 0.4);
+    function loadAcc(file, name, m, place, replace) {
+      try {
+        var dr = new T.DRACOLoader(); dr.setDecoderPath(opts.dracoPath || 'https://www.gstatic.com/draco/versioned/decoders/1.4.1/');
+        var ld = new T.GLTFLoader(); ld.setDRACOLoader(dr);
+        ld.load(accBase + file, function (gltf) {
+          var o = gltf.scene; o.traverse(function (c) { if (c.isMesh) { c.material = m; c.castShadow = true; c.receiveShadow = true; } });
+          var w = new T.Group(); w.add(o); place(o, w);
+          var g = acc[name].g; if (replace) { while (g.children.length) g.remove(g.children[0]); } g.add(w);
+        }, undefined, function () {});
+      } catch (e) {}
+    }
+    loadAcc('acc_defensa.glb', 'defensa', accMat, function (o) { o.scale.setScalar(0.8); o.position.set(0, -0.64 * 0.8, 0); }, true);
+    loadAcc('acc_enganche.glb', 'enganche', hitchMat, function (o) { o.scale.setScalar(0.85); o.rotation.y = Math.PI; }, false);
+
     // llantas deportivas (se superponen a las de serie)
     var wheels = [];
     [[1, 1.8], [-1, 1.8], [1, -1.43], [-1, -1.43]].forEach(function (p) {
@@ -134,7 +152,7 @@
     var state = { parts: {}, color: 'blanco', view: 'three', loaded: false };
     var interactive = !!opts.interactive, reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     var VIEWS = { three: { yaw: -0.6, pitch: 0.26 }, front: { yaw: 0, pitch: 0.12 }, side: { yaw: -Math.PI / 2, pitch: 0.08 }, rear: { yaw: -Math.PI, pitch: 0.16 }, top: { yaw: -0.5, pitch: 1.1 } };
-    var HS = { estribos: ['Estribos', 1.0, 0.55, 0.1], defensa: ['Defensa', 0, 0.95, 3.0], barras: ['Barras', 0, 1.95, -1.1], tapa: ['Tapa de caja', 0, 1.45, -1.8], faros: ['Faros LED', 0, 1.95, 0.3], llantas: ['Llantas', 0.95, 0.85, 1.8] };
+    var HS = { estribos: ['Estribos', 1.0, 0.55, 0.1], defensa: ['Defensa', 0, 0.95, 3.0], barras: ['Barras', 0, 1.95, -1.1], tapa: ['Tapa de caja', 0, 1.45, -1.8], faros: ['Faros LED', 0, 1.95, 0.3], llantas: ['Llantas', 0.95, 0.85, 1.8], enganche: ['Enganche', 0, 0.62, -2.85] };
     var iYaw = VIEWS.three.yaw, iPitch = VIEWS.three.pitch, tView = null, yawVel = 0, idle = 0, dragging = false;
     ORDER.forEach(function (k) { state.parts[k] = false; });
     var listeners = [], spinVal = 0, spinTarget = 0, bounceY = 0, bounceV = 0;
@@ -218,7 +236,7 @@
     var visible = true, clock = new T.Clock();
     if (window.IntersectionObserver) new IntersectionObserver(function (es) {
       visible = es[0].isIntersecting;
-      if (visible && !started && interactive && opts.autoAssemble) { started = true; if (reduce) all(true); else assemble(['llantas', 'estribos', 'defensa', 'barras', 'tapa', 'faros'], 560, 900); }
+      if (visible && !started && interactive && opts.autoAssemble) { started = true; if (reduce) all(true); else assemble(['llantas', 'estribos', 'defensa', 'barras', 'tapa', 'faros', 'enganche'], 560, 900); }
     }, { threshold: 0.15 }).observe(container);
     function frame() {
       requestAnimationFrame(frame);
