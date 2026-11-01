@@ -21,13 +21,22 @@
   }
 
   // ---------- Configurador ----------
-  var cfg = null, cfgSync = function () {};
-  if (g('cfgStage')) {
-    if (window.createRanger) cfg = window.createRanger(g('cfgStage'), { theme: 'dark', interactive: true, model: RANGER_URL, onError: function () {
-      var el = g('cfgStage'); if (window.createTruck && el) { el.innerHTML = ''; var t = window.createTruck(el, { theme: 'dark' }); if (t) { cfg = t; t.onChange(function (s) { cfgSync(s); }); } }
+  var cfg = null, cfgSync = function () {}, cfgVeh = 'ranger', VEH_NAMES = { ranger: 'Ford Ranger', amarok: 'VW Amarok' };
+  function mountCfg(veh, carry) {
+    var el = g('cfgStage'); if (cfg && cfg.destroy) cfg.destroy(); el.innerHTML = ''; cfg = null; cfgVeh = veh;
+    if (window.createRanger) cfg = window.createRanger(el, { theme: 'dark', interactive: true, vehicle: veh, onError: function () {
+      if (veh !== 'ranger') { mountCfg('ranger', carry); return; }
+      if (window.createTruck && el) { el.innerHTML = ''; var t = window.createTruck(el, { theme: 'dark' }); if (t) { cfg = t; t.onChange(function (s) { cfgSync(s); }); } }
     } });
-    if (!cfg && window.createTruck) cfg = window.createTruck(g('cfgStage'), { theme: 'dark' });
+    if (!cfg && window.createTruck) cfg = window.createTruck(el, { theme: 'dark' });
+    if (cfg && carry) {
+      Object.keys(carry.parts).forEach(function (k) { if (carry.parts[k]) cfg.set(k, true, true); });
+      cfg.setColor(carry.color); cfg.setView(carry.view || 'three');
+    }
+    if (cfg) cfg.onChange(function (s) { cfgSync(s); });
+    var vb = g('cfgVeh'); if (vb) vb.querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b.dataset.veh === cfgVeh); });
   }
+  if (g('cfgStage')) mountCfg('ranger', null);
   if (!cfg) {
     document.querySelectorAll('[data-needs3d]').forEach(function (e) { e.remove(); });
   } else {
@@ -43,12 +52,17 @@
     }).join('');
     swEl.onclick = function (e) { var b = e.target.closest('button'); if (b) cfg.setColor(b.dataset.c); };
 
+    if (g('cfgVeh')) g('cfgVeh').onclick = function (e) {
+      var b = e.target.closest('button'); if (!b || b.dataset.veh === cfgVeh || !cfg.state) return;
+      var carry = { parts: Object.assign({}, cfg.state.parts), color: cfg.state.color, view: cfg.state.view };
+      mountCfg(b.dataset.veh, carry);
+    };
     g('cfgViews').onclick = function (e) { var b = e.target.closest('button'); if (b) cfg.setView(b.dataset.v); };
     g('cfgAll').onclick = function () { cfg.all(true); };
     g('cfgReset').onclick = function () { cfg.all(false); cfg.setColor('blanco'); cfg.setView('three'); };
     g('cfgSend').onclick = function () {
       var on = TI.ORDER.filter(function (k) { return cfg.state.parts[k]; }).map(function (k) { return TI.INFO[k].n; });
-      var msg = 'Hola! Armé mi 4x4 en la web de ML Equipamiento. Color: ' + TI.COLOR_NAMES[cfg.state.color] +
+      var msg = 'Hola! Armé mi ' + (VEH_NAMES[cfgVeh] || '4x4') + ' en la web de ML Equipamiento. Color: ' + TI.COLOR_NAMES[cfg.state.color] +
         '. Equipamiento: ' + (on.length ? on.join(', ') : 'todavía sin elegir') + '. ¿Me pasan presupuesto?';
       window.open(waURL(msg), '_blank');
     };
@@ -60,7 +74,7 @@
       g('cfgViews').querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === s.view); });
       g('cfgCount').textContent = n;
     };
-    cfg.onChange(function (s) { cfgSync(s); });
+    cfgSync(cfg.state);
 
     // demo inicial: se arma sola la primera vez que se ve
     if (window.IntersectionObserver && !reduce) {

@@ -5,6 +5,16 @@
   var COLORS = { blanco: 0xdcdbd6, negro: 0x1a1c1f, gris: 0x636a72, rojo: 0xa8271d, azul: 0x20426b, arena: 0xb7a27a };
   var ORDER = ['llantas', 'estribos', 'barras', 'tapa', 'defensa', 'faros', 'enganche'];
 
+  // perfiles por camioneta: anclajes de los accesorios (m), llantas, escalas y puntos de los rótulos
+  var PROFILES = {
+    ranger: { file: 'models/ranger.glb', fit: 0, wheels: [1.8, -1.43], track: 0.945, wy: 0.405, pos: {}, sc: {}, accS: 1, hs: {} },
+    amarok: {
+      file: 'models/amarok.glb', fit: 5.25, wheels: [1.73, -1.25], track: 0.9, wy: 0.395,
+      pos: { estribos: [0, 0.4, 0.17], defensa: [0, 0.5, 2.24], barras: [0, 1.27, -1.2], tapa: [0, 1.27, -1.62], faros: [0, 1.72, 0.5], enganche: [0, 0.5, -2.39] },
+      sc: { estribos: 0.97, barras: 0.9, tapa: 0.88, faros: 0.9 }, accS: 0.9,
+      hs: { estribos: [1.0, 0.5, 0.17], defensa: [0, 0.8, 2.8], barras: [0, 1.9, -1.2], tapa: [0, 1.4, -1.65], faros: [0, 1.8, 0.5], llantas: [0.9, 0.8, 1.73], enganche: [0, 0.5, -2.8] }
+    }
+  };
   function glOK() {
     try { var c = document.createElement('canvas'); return !!(window.WebGLRenderingContext && (c.getContext('webgl2') || c.getContext('webgl'))); } catch (e) { return false; }
   }
@@ -21,6 +31,7 @@
 
   window.createRanger = function (container, opts) {
     opts = opts || {};
+    var P = PROFILES[opts.vehicle] || PROFILES.ranger, dead = false;
     if (!T || !T.GLTFLoader || !T.DRACOLoader || !container || !glOK()) return null;
     var renderer;
     try { renderer = new T.WebGLRenderer({ antialias: true, alpha: true }); } catch (e) { return null; }
@@ -71,8 +82,9 @@
     // ---- accesorios (medidas de la Ranger, en metros) ----
     var acc = {};
     function addAcc(name, px, py, pz, build) {
+      var o = P.pos[name]; if (o) { px = o[0]; py = o[1]; pz = o[2]; }
       var g = new T.Group(); g.position.set(px, py, pz); build(g); g.visible = false; g.scale.setScalar(0.0001);
-      truck.add(g); acc[name] = { g: g, px: px, py: py, pz: pz, a: 0, t: 0 };
+      truck.add(g); acc[name] = { g: g, px: px, py: py, pz: pz, a: 0, t: 0, s: P.sc[name] || 1 };
     }
     addAcc('estribos', 0, 0.42, 0.1, function (g) {
       [-1, 1].forEach(function (s) {
@@ -118,7 +130,7 @@
     });
     addAcc('enganche', 0, 0.62, -2.51, function () {});
     // modelos reales de accesorios (GLB): defensa y enganche
-    var accBase = (opts.model || 'models/ranger.glb').replace(/ranger\.glb$/, '');
+    var modelUrl = opts.model || P.file, accBase = modelUrl.replace(/[^\/]*$/, '');
     var accMat = mat(0x17191c, 0.65, 0.38), hitchMat = mat(0x2b2e33, 0.7, 0.4);
     function loadAcc(file, name, m, place, replace) {
       try {
@@ -131,14 +143,14 @@
         }, undefined, function () {});
       } catch (e) {}
     }
-    loadAcc('acc_defensa.glb', 'defensa', accMat, function (o) { o.scale.setScalar(0.8); o.position.set(0, -0.64 * 0.8, 0); }, true);
-    loadAcc('acc_enganche.glb', 'enganche', hitchMat, function (o) { o.scale.setScalar(0.85); o.rotation.y = Math.PI; }, false);
+    loadAcc('acc_defensa.glb', 'defensa', accMat, function (o) { o.scale.setScalar(0.8 * P.accS); o.position.set(0, -0.64 * 0.8 * P.accS, 0); }, true);
+    loadAcc('acc_enganche.glb', 'enganche', hitchMat, function (o) { o.scale.setScalar(0.85 * P.accS); o.rotation.y = Math.PI; }, false);
 
     // llantas deportivas (se superponen a las de serie)
     var wheels = [];
-    [[1, 1.8], [-1, 1.8], [1, -1.43], [-1, -1.43]].forEach(function (p) {
+    [[1, P.wheels[0]], [-1, P.wheels[0]], [1, P.wheels[1]], [-1, P.wheels[1]]].forEach(function (p) {
       var s = p[0], z = p[1];
-      var g = new T.Group(); g.position.set(s * 0.945, 0.405, z); if (s < 0) g.rotation.y = Math.PI;
+      var g = new T.Group(); g.position.set(s * P.track, P.wy, z); if (s < 0) g.rotation.y = Math.PI;
       var spin = new T.Group(); g.add(spin);
       C(0.285, 0.05, darkM, 0, 0, 0, spin, 'x');
       var tor = new T.Mesh(new T.TorusGeometry(0.28, 0.035, 10, 40), orange); tor.rotation.y = Math.PI / 2; tor.position.x = 0.03; tor.castShadow = true; spin.add(tor);
@@ -153,6 +165,7 @@
     var interactive = !!opts.interactive, reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     var VIEWS = { three: { yaw: -0.6, pitch: 0.26 }, front: { yaw: 0, pitch: 0.12 }, side: { yaw: -Math.PI / 2, pitch: 0.08 }, rear: { yaw: -Math.PI, pitch: 0.16 }, top: { yaw: -0.5, pitch: 1.1 } };
     var HS = { estribos: ['Estribos', 1.0, 0.55, 0.1], defensa: ['Defensa', 0, 0.95, 3.0], barras: ['Barras', 0, 1.95, -1.1], tapa: ['Tapa de caja', 0, 1.45, -1.8], faros: ['Faros LED', 0, 1.95, 0.3], llantas: ['Llantas', 0.95, 0.85, 1.8], enganche: ['Enganche', 0, 0.62, -2.85] };
+    for (var hk in P.hs) HS[hk] = [HS[hk][0]].concat(P.hs[hk]);
     var iYaw = VIEWS.three.yaw, iPitch = VIEWS.three.pitch, tView = null, yawVel = 0, idle = 0, dragging = false;
     ORDER.forEach(function (k) { state.parts[k] = false; });
     var listeners = [], spinVal = 0, spinTarget = 0, bounceY = 0, bounceV = 0;
@@ -185,7 +198,7 @@
     try {
       var draco = new T.DRACOLoader(); draco.setDecoderPath(opts.dracoPath || 'https://www.gstatic.com/draco/versioned/decoders/1.4.1/');
       var loader = new T.GLTFLoader(); loader.setDRACOLoader(draco);
-      loader.load(opts.model || 'models/ranger.glb', function (gltf) {
+      loader.load(modelUrl, function (gltf) {
         var m = gltf.scene;
         m.traverse(function (o) {
           if (o.isMesh) {
@@ -196,6 +209,10 @@
             });
           }
         });
+        if (P.fit) { // normaliza modelos exportados en otras unidades: largo en metros, apoyado en el piso y centrado
+          var bx = new T.Box3().setFromObject(m), sz = bx.getSize(new T.Vector3()), ct = bx.getCenter(new T.Vector3()), sc = P.fit / sz.z;
+          m.scale.multiplyScalar(sc); m.position.set(-ct.x * sc, -bx.min.y * sc, -ct.z * sc);
+        }
         holder.add(m); state.loaded = true; container.classList.add('ready');
         if (opts.onLoad) opts.onLoad(api);
       }, undefined, function (e) { failed = true; if (opts.onError) opts.onError(e); });
@@ -239,6 +256,7 @@
       if (visible && !started && interactive && opts.autoAssemble) { started = true; if (reduce) all(true); else assemble(['llantas', 'estribos', 'defensa', 'barras', 'tapa', 'faros', 'enganche'], 560, 900); }
     }, { threshold: 0.15 }).observe(container);
     function frame() {
+      if (dead) return;
       requestAnimationFrame(frame);
       if (!visible || document.hidden) return;
       var dt = Math.min(clock.getDelta(), 0.05), k2 = Math.min(1, dt * 6);
@@ -252,7 +270,7 @@
       camera.position.set(0, target.y + Math.sin(cPitch) * RR, Math.cos(cPitch) * RR); camera.lookAt(target);
       for (var k in acc) {
         var a = acc[k]; a.a += (a.t - a.a) * Math.min(1, dt * 5); if (Math.abs(a.t - a.a) < 0.002) a.a = a.t;
-        a.g.visible = a.a > 0.01; a.g.scale.setScalar(Math.max(0.0001, easeOutBack(a.a)));
+        a.g.visible = a.a > 0.01; a.g.scale.setScalar(Math.max(0.0001, easeOutBack(a.a) * a.s));
         a.g.position.set(a.px, a.py + (1 - a.a) * 1.2, a.pz); a.g.rotation.y = (1 - a.a) * 0.5;
       }
       headlight.intensity = acc.faros.a * 1.6;
@@ -269,7 +287,7 @@
     frame();
 
     var api = { state: state, set: set, toggle: toggle, all: all, setColor: setColor, assemble: assemble, scrub: scrub, setView: setView, onChange: function (f) { listeners.push(f); f(state); },
-      destroy: function () { renderer.dispose(); if (canvas.parentNode) canvas.parentNode.removeChild(canvas); } };
+      destroy: function () { dead = true; renderer.dispose(); if (canvas.parentNode) canvas.parentNode.removeChild(canvas); } };
     return api;
   };
 })();
