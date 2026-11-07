@@ -10,9 +10,9 @@
     ranger: { file: 'models/ranger.glb', fit: 0, wheels: [1.8, -1.43], track: 0.945, wy: 0.405, pos: {}, sc: {}, accS: 1, hs: {} },
     hilux: {
       file: 'models/hilux.glb', fit: 5.18, wheels: [1.63, -1.37], track: 0.9, wy: 0.4,
-      pos: { estribos: [0, 0.4, 0.18], defensa: [0, 0.48, 2.32], barras: [0, 1.25, -1.15], tapa: [0, 1.25, -1.65], faros: [0, 1.64, 0.6], enganche: [0, 0.55, -2.35] },
-      sc: { estribos: 0.95, barras: 0.9, tapa: 0.88, faros: 0.9 }, accS: 0.9,
-      hs: { estribos: [1.0, 0.5, 0.18], defensa: [0, 0.8, 2.7], barras: [0, 1.85, -1.15], tapa: [0, 1.35, -1.65], faros: [0, 1.75, 0.6], llantas: [0.9, 0.8, 1.63], enganche: [0, 0.5, -2.7] }
+      pos: { estribos: [0, 0.4, 0.18], defensa: [0, 0.48, 2.32], barras: [0, 1.25, -1.4], tapa: [0, 1.25, -1.65], faros: [0, 1.64, 0.6], enganche: [0, 0.55, -2.35] },
+      sc: { estribos: 0.95, barras: 1, tapa: 0.88, faros: 0.9 }, accS: 0.9, antivuelco: { rot: 0 },
+      hs: { estribos: [1.0, 0.5, 0.18], defensa: [0, 0.8, 2.7], barras: [0, 1.85, -1.4], tapa: [0, 1.35, -1.65], faros: [0, 1.75, 0.6], llantas: [0.9, 0.8, 1.63], enganche: [0, 0.5, -2.7] }
     },
     amarok: {
       file: 'models/amarok.glb', fit: 5.25, wheels: [1.73, -1.25], track: 0.9, wy: 0.395,
@@ -150,6 +150,7 @@
       } catch (e) {}
     }
     loadAcc('acc_defensa.glb', 'defensa', accMat, function (o) { o.scale.setScalar(0.8 * P.accS); o.position.set(0, -0.64 * 0.8 * P.accS, 0); }, true);
+    if (P.antivuelco) loadAcc('acc_antivuelco.glb', 'barras', accMat, function (o) { o.position.set(0, 0.377, 0); o.rotation.y = P.antivuelco.rot; }, true);
     loadAcc('acc_enganche.glb', 'enganche', hitchMat, function (o) { o.scale.setScalar(0.85 * P.accS); o.rotation.y = Math.PI; }, false);
 
     // llantas deportivas (se superponen a las de serie)
